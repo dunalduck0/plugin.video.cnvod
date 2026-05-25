@@ -12,6 +12,7 @@
             <checksum>https://raw.githubusercontent.com/dunalduck0/plugin.video.cnvod/main/repo/addons.xml.md5</checksum>
             <datadir zip="true">https://raw.githubusercontent.com/dunalduck0/plugin.video.cnvod/main/repo/</datadir>
         </dir>
+    </extension>
     <extension point="xbmc.addon.metadata">
         <summary lang="en_GB">OleVod Repository</summary>
         <description lang="en_GB">Auto-update repository for OleVod (plugin.video.cnvod)</description>
