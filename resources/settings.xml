@@ -3,18 +3,22 @@
     <section id="general">
         <category id="general" label="General">
             <group id="1">
-                <setting id="enable_olevod" type="bool" label="Enable olevod.com">
+                <setting id="enable_olevod" type="boolean" label="Enable olevod.com">
                     <default>true</default>
+                    <control type="toggle"/>
                 </setting>
-                <setting id="enable_iyftv" type="bool" label="Enable iyf.tv">
+                <setting id="enable_iyftv" type="boolean" label="Enable iyf.tv">
                     <default>true</default>
+                    <control type="toggle"/>
                 </setting>
-                <setting id="enable_huavod" type="bool" label="Enable huavod.com">
+                <setting id="enable_huavod" type="boolean" label="Enable huavod.com">
                     <default>true</default>
+                    <control type="toggle"/>
                 </setting>
-                <setting id="search_timeout" type="slider" label="Search timeout (seconds)">
+                <setting id="search_timeout" type="integer" label="Search timeout (seconds)">
                     <default>15</default>
                     <constraints minimum="5" maximum="60" step="1"/>
+                    <control type="slider" format="integer"/>
                 </setting>
             </group>
         </category>
@@ -24,9 +28,11 @@
             <group id="1">
                 <setting id="olevod_username" type="string" label="Username / Email">
                     <default></default>
+                    <control type="edit"/>
                 </setting>
-                <setting id="olevod_password" type="string" label="Password" option="hidden">
+                <setting id="olevod_password" type="string" label="Password">
                     <default></default>
+                    <control type="edit" hidden="true"/>
                 </setting>
             </group>
         </category>
