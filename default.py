@@ -13,20 +13,39 @@ import sys
 import urllib.parse
 
 import xbmc
+import xbmcaddon
 import xbmcgui
 import xbmcplugin
+import xbmcvfs
 
 # Make `resources/lib/...` importable
 import os
 _addon_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(_addon_dir, "resources", "lib"))
 
+import history  # noqa: E402
 from sites import PROVIDERS, StreamInfo, VideoResult  # noqa: E402
 
 
 HANDLE = int(sys.argv[1])
 BASE_URL = sys.argv[0]
-ADDON_NAME = "CN VOD"
+ADDON = xbmcaddon.Addon()
+ADDON_NAME = ADDON.getAddonInfo("name") or "CN VOD"
+PROFILE_DIR = xbmcvfs.translatePath(ADDON.getAddonInfo("profile"))
+
+
+def _enabled_providers():
+    out = []
+    for pid, p in PROVIDERS.items():
+        setting = f"enable_{pid}"
+        try:
+            if ADDON.getSettingBool(setting):
+                out.append(p)
+        except Exception:
+            # Default-on for olevod if setting doesn't exist yet
+            if pid == "olevod":
+                out.append(p)
+    return out or list(PROVIDERS.values())[:1]
 
 
 def _log(msg: str, level: int = xbmc.LOGINFO) -> None:
@@ -46,25 +65,43 @@ def _notify(msg: str, icon: str = xbmcgui.NOTIFICATION_INFO) -> None:
 # -------------------- views --------------------
 
 def view_root() -> None:
-    item = xbmcgui.ListItem(label="Search")
+    item = xbmcgui.ListItem(label="[B]Search[/B]")
     item.setArt({"icon": "DefaultAddonsSearch.png"})
     xbmcplugin.addDirectoryItem(HANDLE, _url(act="search"), item, isFolder=True)
+
+    recent = history.load(PROFILE_DIR)
+    for q in recent:
+        ri = xbmcgui.ListItem(label=q)
+        ri.setArt({"icon": "DefaultAddonsSearch.png"})
+        xbmcplugin.addDirectoryItem(
+            HANDLE, _url(act="search", q=q), ri, isFolder=True
+        )
+    if recent:
+        ci = xbmcgui.ListItem(label="[I]Clear search history[/I]")
+        xbmcplugin.addDirectoryItem(
+            HANDLE, _url(act="clear_history"), ci, isFolder=False
+        )
     xbmcplugin.endOfDirectory(HANDLE)
 
 
-def view_search() -> None:
-    kb = xbmc.Keyboard("", "Search olevod + iyf.tv")
-    kb.doModal()
-    if not kb.isConfirmed():
-        xbmcplugin.endOfDirectory(HANDLE, succeeded=False)
-        return
-    query = kb.getText().strip()
+def view_search(prefill: str = "") -> None:
+    if prefill:
+        query = prefill
+    else:
+        kb = xbmc.Keyboard("", "Search olevod + iyf.tv")
+        kb.doModal()
+        if not kb.isConfirmed():
+            xbmcplugin.endOfDirectory(HANDLE, succeeded=False)
+            return
+        query = kb.getText().strip()
     if not query:
         xbmcplugin.endOfDirectory(HANDLE, succeeded=False)
         return
 
+    history.add(PROFILE_DIR, query)
+
     results: list[VideoResult] = []
-    for provider in PROVIDERS.values():
+    for provider in _enabled_providers():
         try:
             results.extend(provider.search(query))
         except Exception as e:  # noqa: BLE001
@@ -166,7 +203,11 @@ def main() -> None:
     if not act:
         view_root()
     elif act == "search":
-        view_search()
+        view_search(params.get("q", ""))
+    elif act == "clear_history":
+        history.clear(PROFILE_DIR)
+        _notify("Search history cleared")
+        xbmc.executebuiltin("Container.Refresh")
     elif act == "episodes":
         view_episodes(params.get("site", ""), params.get("id", ""))
     elif act == "play":

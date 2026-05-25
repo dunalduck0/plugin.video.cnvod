@@ -11,23 +11,13 @@ Search and stream Chinese on-demand video sites (**olevod.com**, **iyf.tv**) dir
 
 iyf.tv signing is reverse-engineered separately and will be wired in once captured.
 
-## Why an addon (instead of `.strm` files)?
-
-* No PC needed — you can search and play from your TV remote
-* Signed URLs expire (~24h); the addon mints a fresh one every play
-* iyf.tv streams are IP-bound — the addon makes the API call from the TV so the IP matches
-* Works for multi-episode TV series, not just single movies
-
-## Install
+## Install on Kodi (TV or desktop)
 
 1. Settings → System → Add-ons → enable **Unknown sources**
-2. Build the zip:
-   ```powershell
-   cd plugin.video.cnvod
-   .\build.ps1     # produces plugin.video.cnvod-0.1.0.zip in dist\
-   ```
-3. In Kodi: Add-ons → Install from zip file → pick the zip
+2. Grab the latest zip from [Releases](https://github.com/dunalduck0/plugin.video.cnvod/releases/latest)
+3. Add-ons → **Install from zip file** → pick the zip
 4. Open from **Video Add-ons → CN VOD → Search**
+5. Recent searches show up under the Search row so you don't have to retype Chinese on a TV remote
 
 For **HLS playback with custom Referer headers**, the **Input Stream Adaptive** addon must be enabled (bundled with Kodi 19+, just not enabled by default on some platforms).
 
@@ -67,6 +57,14 @@ tools/
 # Search and inspect detail for video id 75514
 $env:PYTHONIOENCODING="utf-8"
 python tools\probe_olevod.py 75514
+```
+
+## Releases
+
+A push of a `vX.Y.Z` tag triggers `.github/workflows/release.yml` which builds the zip and publishes a GitHub release. Locally:
+
+```powershell
+.\build.ps1     # produces dist/plugin.video.cnvod-<version>.zip
 ```
 
 ## License

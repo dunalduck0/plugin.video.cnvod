@@ -1,0 +1,65 @@
+name: release
+
+# Build the Kodi-installable zip and publish a GitHub release whenever a
+# tag like `v0.2.0` is pushed. The zip MUST have a single top-level folder
+# named exactly `<addon id>` for Kodi to accept it.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read addon id and version
+        id: meta
+        run: |
+          python - <<'EOF' >> "$GITHUB_OUTPUT"
+          import xml.etree.ElementTree as ET
+          t = ET.parse("addon.xml").getroot()
+          print(f"id={t.attrib['id']}")
+          print(f"version={t.attrib['version']}")
+          EOF
+
+      - name: Build zip
+        run: |
+          ID="${{ steps.meta.outputs.id }}"
+          VERSION="${{ steps.meta.outputs.version }}"
+          STAGE="$(mktemp -d)/$ID"
+          mkdir -p "$STAGE"
+          # Copy addon contents, excluding dev-only paths
+          rsync -a \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='dist' \
+            --exclude='tools' \
+            --exclude='build.ps1' \
+            --exclude='__pycache__' \
+            --exclude='.vscode' \
+            ./ "$STAGE/"
+          find "$STAGE" -type d -name __pycache__ -exec rm -rf {} +
+          mkdir -p dist
+          (cd "$(dirname "$STAGE")" && zip -r "$GITHUB_WORKSPACE/dist/${ID}-${VERSION}.zip" "$(basename "$STAGE")")
+          ls -la dist/
+
+      - name: Verify tag matches addon.xml version
+        run: |
+          TAG="${GITHUB_REF##*/}"
+          VERSION="${{ steps.meta.outputs.version }}"
+          if [ "$TAG" != "v$VERSION" ]; then
+            echo "Tag $TAG does not match addon.xml version v$VERSION" >&2
+            exit 1
+          fi
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/${{ steps.meta.outputs.id }}-${{ steps.meta.outputs.version }}.zip
+          generate_release_notes: true
