@@ -6,4 +6,8 @@
         <setting id="enable_huavod" type="bool" label="Enable huavod.com" default="true"/>
         <setting id="search_timeout" type="slider" label="Search timeout (seconds)" default="15" range="5,60" option="int"/>
     </category>
+    <category label="OleVOD Account (VIP)">
+        <setting id="olevod_username" type="text" label="Username / Email" default=""/>
+        <setting id="olevod_password" type="text" label="Password" default="" option="hidden"/>
+    </category>
 </settings>

@@ -6,25 +6,38 @@ Clean-room reverse-engineered from the live JS bundle
 * API host: https://api.olelive.com
 * Every GET request gets a `_vv` query param signed from the current unix
   timestamp by the JS function `fe(t)`. See `_vv()` for the algorithm.
-* The detail endpoint returns plain JSON. No AES decryption needed
-  (as of November 2025; if olevod changes this in future, this module
-  is where to patch).
+* Authenticated requests add _he/_pl/_si params derived from the login token.
+* The detail endpoint returns plain JSON when unauthenticated; when authenticated
+  the API *may* return an AES-encrypted `data` string (daily key, AES-CBC).
+  See `_aes_decrypt()` for the algorithm.
 
 Endpoints used:
     /v1/pub/index/search/{q}/0/0/0/1     -> search
     /v1/pub/vod/detail/{id}/true         -> detail (incl. play urls)
+    /v1/pub/user/login                   -> login (POST)
 
 Static assets (thumbnails) live under https://static.olelive.com/.
 
 The play URL is a master HLS playlist served by europe.olemovienews.com
 and REQUIRES the Referer header `https://www.olevod.com/` to be sent.
+
+VIP login:
+    Key  = md5(YYYY-MM-DD)[8:24]   (16-char substring, rotates daily)
+    IV   = same as key
+    Mode = AES-CBC, PKCS7 padding
+    Token (returned by /login) is "aaa.bbb.ccc"; split by '.' and add as
+    _he=aaa&_pl=bbb&_si=ccc to every authenticated request.
 """
 
 from __future__ import annotations
 
+import base64
 import hashlib
+import json
+import os
 import time
 import urllib.parse
+from datetime import datetime, timezone
 
 import requests
 
@@ -34,6 +47,8 @@ API = "https://api.olelive.com"
 WEB = "https://www.olevod.com"
 STATIC = "https://static.olelive.com/"
 DEFAULT_TIMEOUT = 15
+# Re-login if cached token is older than this many seconds
+TOKEN_TTL = 7 * 24 * 3600  # 7 days
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -89,16 +104,56 @@ def _vv(ts: int) -> str:
     )
 
 
-def _get(path: str, params: dict | None = None) -> dict:
+def _aes_daily_key() -> bytes:
+    """Return the 16-byte AES key for today (local date).
+
+    JS: D(YYYY-MM-DD).substring(8, 24)  where D = md5
+    """
+    date_str = datetime.now().strftime("%Y-%m-%d")
+    return hashlib.md5(date_str.encode()).hexdigest()[8:24].encode()
+
+
+def _aes_decrypt(ciphertext: str) -> str | None:
+    """Decrypt an AES-CBC / PKCS7 / base64 ciphertext from olevod API.
+
+    Returns the plaintext string, or None if decryption is unavailable or fails.
+    """
+    try:
+        from Crypto.Cipher import AES  # type: ignore[import]
+        from Crypto.Util.Padding import unpad  # type: ignore[import]
+        key = _aes_daily_key()
+        cipher = AES.new(key, AES.MODE_CBC, iv=key)
+        decoded = base64.b64decode(ciphertext)
+        plaintext = unpad(cipher.decrypt(decoded), AES.block_size)
+        return plaintext.decode("utf-8")
+    except Exception:
+        return None
+
+
+def _get(path: str, params: dict | None = None, token: str | None = None) -> dict:
     p = dict(params or {})
     p["_vv"] = _vv(int(time.time()))
+    if token:
+        parts = token.split(".")
+        if len(parts) == 3:
+            p["_he"], p["_pl"], p["_si"] = parts
     url = f"{API}{path}"
     r = requests.get(url, params=p, headers=HEADERS, timeout=DEFAULT_TIMEOUT)
     r.raise_for_status()
     j = r.json()
-    if j.get("code") != 0:
-        raise RuntimeError(f"olevod API error: code={j.get('code')} msg={j.get('msg')}")
-    return j.get("data") or {}
+    code = j.get("code")
+    if code == 13 or code == 14:
+        # Auth error — token expired / invalid
+        raise AuthError(f"olevod auth error: code={code} msg={j.get('msg')}")
+    if code != 0:
+        raise RuntimeError(f"olevod API error: code={code} msg={j.get('msg')}")
+    data = j.get("data")
+    # If data is an encrypted string (AES-CBC), decrypt it
+    if isinstance(data, str) and data:
+        decrypted = _aes_decrypt(data)
+        if decrypted:
+            return json.loads(decrypted)
+    return data or {}
 
 
 def _full_pic(pic: str | None) -> str | None:
@@ -109,13 +164,84 @@ def _full_pic(pic: str | None) -> str | None:
     return STATIC + pic.lstrip("/")
 
 
+def _load_token(profile_dir: str, username: str) -> str | None:
+    """Load cached token; return None if missing, expired, or for different user."""
+    try:
+        path = os.path.join(profile_dir, "olevod_token.json")
+        with open(path, encoding="utf-8") as f:
+            d = json.load(f)
+        if d.get("username") != username:
+            return None
+        if time.time() - float(d.get("saved_at", 0)) > TOKEN_TTL:
+            return None
+        return d.get("token")
+    except Exception:
+        return None
+
+
+def _save_token(profile_dir: str, username: str, token: str) -> None:
+    try:
+        os.makedirs(profile_dir, exist_ok=True)
+        path = os.path.join(profile_dir, "olevod_token.json")
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump({"username": username, "token": token, "saved_at": time.time()}, f)
+    except Exception:
+        pass
+
+
+def _do_login(username: str, password: str) -> str:
+    """POST to login endpoint and return the token string."""
+    r = requests.post(
+        f"{API}/v1/pub/user/login",
+        json={"username": username, "password": password},
+        params={"_vv": _vv(int(time.time()))},
+        headers=HEADERS,
+        timeout=DEFAULT_TIMEOUT,
+    )
+    r.raise_for_status()
+    j = r.json()
+    if j.get("code") != 0:
+        raise RuntimeError(f"olevod login failed: {j.get('msg', 'unknown error')}")
+    token = j.get("data", {}).get("token")
+    if not token:
+        raise RuntimeError("olevod login: no token in response")
+    return token
+
+
+class AuthError(Exception):
+    pass
+
+
 class OleVod(SiteProvider):
     id = "olevod"
     name = "OleVOD"
 
+    def __init__(self) -> None:
+        self._token: str | None = None
+
+    def authenticate(self, username: str, password: str, profile_dir: str) -> None:
+        """Load or refresh the VIP login token.
+
+        Called by default.py at startup when credentials are configured.
+        """
+        token = _load_token(profile_dir, username)
+        if not token:
+            token = _do_login(username, password)
+            _save_token(profile_dir, username, token)
+        self._token = token
+
+    def _api_get(self, path: str, params: dict | None = None) -> dict:
+        """Wrapper that injects auth token and retries login on auth error."""
+        try:
+            return _get(path, params, self._token)
+        except AuthError:
+            # Token expired — clear it; caller should re-login next invocation
+            self._token = None
+            raise
+
     def search(self, query: str) -> list[VideoResult]:
         q = urllib.parse.quote(query)
-        data = _get(f"/v1/pub/index/search/{q}/0/0/0/1")
+        data = self._api_get(f"/v1/pub/index/search/{q}/0/0/0/1")
         out: list[VideoResult] = []
         for group in data.get("data") or []:
             items = group.get("list") or []
@@ -133,7 +259,7 @@ class OleVod(SiteProvider):
         return out
 
     def _detail(self, video_id: str) -> dict:
-        return _get(f"/v1/pub/vod/detail/{video_id}/true")
+        return self._api_get(f"/v1/pub/vod/detail/{video_id}/true")
 
     def list_episodes(self, video_id: str) -> list[Episode]:
         d = self._detail(video_id)

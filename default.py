@@ -206,7 +206,25 @@ def play(site: str, video_id: str, episode: int = 1) -> None:
 
 # -------------------- router --------------------
 
+def _configure_providers() -> None:
+    """Apply user settings to providers (e.g. VIP credentials for olevod)."""
+    olevod = PROVIDERS.get("olevod")
+    if not olevod:
+        return
+    try:
+        username = ADDON.getSetting("olevod_username").strip()
+        password = ADDON.getSetting("olevod_password").strip()
+    except Exception:
+        return
+    if username and password:
+        try:
+            olevod.authenticate(username, password, PROFILE_DIR)
+        except Exception as e:
+            _log(f"olevod VIP login failed: {e}", xbmc.LOGWARNING)
+
+
 def main() -> None:
+    _configure_providers()
     qs = sys.argv[2][1:] if len(sys.argv) > 2 else ""
     params = dict(urllib.parse.parse_qsl(qs))
     act = params.get("act")
