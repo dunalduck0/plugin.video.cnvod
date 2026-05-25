@@ -2,7 +2,7 @@
 <settings>
     <category label="General">
         <setting id="enable_olevod" type="bool" label="Enable olevod.com" default="true"/>
-        <setting id="enable_iyftv" type="bool" label="Enable iyf.tv (coming soon)" default="false"/>
+        <setting id="enable_iyftv" type="bool" label="Enable iyf.tv" default="true"/>
         <setting id="search_timeout" type="slider" label="Search timeout (seconds)" default="15" range="5,60" option="int"/>
     </category>
 </settings>
