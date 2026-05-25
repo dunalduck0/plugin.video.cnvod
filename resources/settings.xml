@@ -28,11 +28,11 @@
             <group id="1">
                 <setting id="olevod_username" type="string" label="Username / Email">
                     <default></default>
-                    <control type="edit"/>
+                    <control type="button"/>
                 </setting>
                 <setting id="olevod_password" type="string" label="Password">
                     <default></default>
-                    <control type="edit" hidden="true"/>
+                    <control type="button" hidden="true"/>
                 </setting>
             </group>
         </category>
