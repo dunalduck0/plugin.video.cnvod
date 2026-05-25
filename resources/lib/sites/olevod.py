@@ -192,7 +192,7 @@ def _save_token(profile_dir: str, username: str, token: str) -> None:
 def _do_login(username: str, password: str) -> str:
     """POST to login endpoint and return the token string."""
     r = requests.post(
-        f"{API}/v1/pub/user/login",
+        f"{API}/pub/user/login",
         json={"username": username, "password": password},
         params={"_vv": _vv(int(time.time()))},
         headers=HEADERS,
