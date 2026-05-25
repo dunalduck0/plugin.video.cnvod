@@ -216,11 +216,36 @@ def _configure_providers() -> None:
         password = ADDON.getSetting("olevod_password").strip()
     except Exception:
         return
-    if username and password:
+    if not username or not password:
+        return
+
+    def _ask_captcha(captcha_id: str, image_b64: str) -> str:
+        """Show captcha image and keyboard dialog; return user's text input."""
+        import base64
+        captcha_path = os.path.join(PROFILE_DIR, "captcha.png")
         try:
-            olevod.authenticate(username, password, PROFILE_DIR)
-        except Exception as e:
-            _log(f"olevod VIP login failed: {e}", xbmc.LOGWARNING)
+            os.makedirs(PROFILE_DIR, exist_ok=True)
+            with open(captcha_path, "wb") as f:
+                f.write(base64.b64decode(image_b64))
+        except Exception:
+            captcha_path = ""
+        # Show image in a dialog then ask for input
+        if captcha_path:
+            img_dialog = xbmcgui.Dialog()
+            img_dialog.ok(
+                "OleVOD Login — Enter Captcha",
+                f"Please look at the captcha image:[CR]{captcha_path}[CR]Then click OK and type the characters."
+            )
+        kb = xbmc.Keyboard("", "OleVOD Captcha")
+        kb.doModal()
+        return kb.getText().strip() if kb.isConfirmed() else ""
+
+    try:
+        olevod.authenticate(username, password, PROFILE_DIR, ask_captcha=_ask_captcha)
+        _log("olevod VIP login successful")
+    except Exception as e:
+        _log(f"olevod VIP login failed: {e}", xbmc.LOGWARNING)
+        _notify(f"OleVOD login failed: {e}", xbmcgui.NOTIFICATION_WARNING)
 
 
 def main() -> None:

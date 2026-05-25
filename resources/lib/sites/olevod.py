@@ -37,7 +37,8 @@ import json
 import os
 import time
 import urllib.parse
-from datetime import datetime, timezone
+from datetime import datetime
+from typing import Callable
 
 import requests
 
@@ -189,11 +190,34 @@ def _save_token(profile_dir: str, username: str, token: str) -> None:
         pass
 
 
-def _do_login(username: str, password: str) -> str:
+def _fetch_captcha() -> tuple[str, str]:
+    """Fetch a captcha from the API.
+
+    Returns (captcha_id, base64_image_data) where base64_image_data is the
+    raw base64 string (without the data:image/png;base64, prefix).
+    """
+    r = requests.post(
+        f"{API}/pub/captcha",
+        json={},
+        params={"_vv": _vv(int(time.time()))},
+        headers=HEADERS,
+        timeout=DEFAULT_TIMEOUT,
+    )
+    r.raise_for_status()
+    d = r.json().get("data", {})
+    captcha_id = d.get("captchaId", "")
+    pic_path = d.get("picPath", "")
+    # picPath is "data:image/png;base64,<data>"
+    b64 = pic_path.split(",", 1)[1] if "," in pic_path else pic_path
+    return captcha_id, b64
+
+
+def _do_login(username: str, password: str, captcha: str, captcha_id: str) -> str:
     """POST to login endpoint and return the token string."""
     r = requests.post(
         f"{API}/pub/user/login",
-        json={"username": username, "password": password},
+        json={"username": username, "password": password,
+              "captcha": captcha, "captcha_id": captcha_id},
         params={"_vv": _vv(int(time.time()))},
         headers=HEADERS,
         timeout=DEFAULT_TIMEOUT,
@@ -219,14 +243,23 @@ class OleVod(SiteProvider):
     def __init__(self) -> None:
         self._token: str | None = None
 
-    def authenticate(self, username: str, password: str, profile_dir: str) -> None:
+    def authenticate(self, username: str, password: str, profile_dir: str,
+                     ask_captcha: "Callable[[str, str], str] | None" = None) -> None:
         """Load or refresh the VIP login token.
 
         Called by default.py at startup when credentials are configured.
+        ask_captcha(captcha_id, image_b64) -> captcha_text  (callable provided by Kodi UI)
+        If ask_captcha is None and no cached token exists, raises RuntimeError.
         """
         token = _load_token(profile_dir, username)
         if not token:
-            token = _do_login(username, password)
+            if ask_captcha is None:
+                raise RuntimeError("olevod: no cached token and no captcha handler provided")
+            captcha_id, image_b64 = _fetch_captcha()
+            captcha_text = ask_captcha(captcha_id, image_b64)
+            if not captcha_text:
+                raise RuntimeError("olevod: captcha not entered")
+            token = _do_login(username, password, captcha_text, captcha_id)
             _save_token(profile_dir, username, token)
         self._token = token
 

@@ -2,3 +2,5 @@ dist/
 __pycache__/
 *.pyc
 .vscode/
+.env
+.dev_profile/
