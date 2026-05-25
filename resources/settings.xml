@@ -15,7 +15,6 @@
                 <setting id="search_timeout" type="slider" label="Search timeout (seconds)">
                     <default>15</default>
                     <constraints minimum="5" maximum="60" step="1"/>
-                    <options format="integer"/>
                 </setting>
             </group>
         </category>
