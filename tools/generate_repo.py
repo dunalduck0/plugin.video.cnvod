@@ -39,13 +39,13 @@ def main():
     repo_src = os.path.join(REPO_DIR, "repository.cnvod")
     repo_zip_name = f"repository.cnvod-{repo_version}.zip"
     repo_zip_path = os.path.join(repo_src, repo_zip_name)
-    if not os.path.exists(repo_zip_path):
-        import zipfile
-        with zipfile.ZipFile(repo_zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
-            zf.write(os.path.join(repo_src, "addon.xml"), f"repository.cnvod/addon.xml")
-        print(f"  Built {repo_zip_name}")
+    # Always rebuild repo zip so it stays in sync with addon.xml
+    import zipfile
+    with zipfile.ZipFile(repo_zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.write(os.path.join(repo_src, "addon.xml"), f"repository.cnvod/addon.xml")
+    print(f"  Built {repo_zip_name}")
 
-    # Generate addons.xml
+    # Generate addons.xml — use explicit LF endings so MD5 matches what git/raw.githubusercontent.com serves
     lines = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>', "<addons>"]
     lines.append("    " + _to_str(plugin))
     lines.append("    " + _to_str(repo))
@@ -53,11 +53,12 @@ def main():
     content = "\n".join(lines) + "\n"
 
     addons_xml = os.path.join(REPO_DIR, "addons.xml")
-    with open(addons_xml, "w", encoding="utf-8") as f:
+    with open(addons_xml, "w", encoding="utf-8", newline="\n") as f:
         f.write(content)
 
+    # Compute MD5 of exactly the bytes that will be served (UTF-8, LF)
     md5 = hashlib.md5(content.encode("utf-8")).hexdigest()
-    with open(os.path.join(REPO_DIR, "addons.xml.md5"), "w") as f:
+    with open(os.path.join(REPO_DIR, "addons.xml.md5"), "w", encoding="ascii", newline="\n") as f:
         f.write(md5)
 
     print(f"  addons.xml written (md5: {md5})")
