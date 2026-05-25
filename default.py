@@ -148,8 +148,18 @@ def view_episodes(site: str, video_id: str) -> None:
         return
 
     if len(episodes) == 1:
-        # Single-file (movie) — play immediately instead of showing a 1-item list.
-        play(site, video_id, episodes[0].index)
+        # Movie with a single stream: show it as a directly-playable item.
+        # We MUST still call endOfDirectory (this is a directory handle), so
+        # we add the single episode as a playable list item and let the user
+        # click it — that triggers act=play on a fresh "resolve" handle where
+        # setResolvedUrl works correctly.
+        ep = episodes[0]
+        item = xbmcgui.ListItem(label=ep.title)
+        item.setProperty("IsPlayable", "true")
+        url = _url(act="play", site=site, id=video_id, ep=ep.index)
+        xbmcplugin.addDirectoryItem(HANDLE, url, item, isFolder=False)
+        xbmcplugin.setContent(HANDLE, "videos")
+        xbmcplugin.endOfDirectory(HANDLE)
         return
 
     for ep in episodes:
