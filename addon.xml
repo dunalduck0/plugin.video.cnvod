@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <addon id="plugin.video.cnvod"
        name="OleVod"
-       version="0.7.0"
+       version="0.8.0"
        provider-name="dunalduck0">
     <requires>
         <import addon="xbmc.python" version="3.0.0"/>
@@ -12,8 +12,8 @@
         <provides>video</provides>
     </extension>
     <extension point="xbmc.addon.metadata">
-        <summary lang="en_GB">Search and play olevod.com and iyf.tv videos</summary>
-        <description lang="en_GB">OleVod: search and stream Chinese on-demand video from olevod.com directly on your TV. No PC, no DevTools, no .strm files.</description>
+        <summary lang="en_GB">Search and play olevod.com, iyf.tv and huavod.com videos</summary>
+        <description lang="en_GB">OleVod: search and stream Chinese on-demand video from olevod.com, iyf.tv, and huavod.com directly on your TV. No PC, no DevTools, no .strm files.</description>
         <platform>all</platform>
         <language>en zh</language>
         <license>MIT</license>
