@@ -4,3 +4,4 @@ __pycache__/
 .vscode/
 .env
 .dev_profile/
+captcha.png
