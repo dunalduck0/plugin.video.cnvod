@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<addon id="plugin.video.cnvod"
+       name="CN VOD"
+       version="0.1.0"
+       provider-name="dunalduck0">
+    <requires>
+        <import addon="xbmc.python" version="3.0.0"/>
+        <import addon="script.module.requests" version="2.22.0"/>
+        <import addon="inputstream.adaptive" version="2.0.0" optional="true"/>
+    </requires>
+    <extension point="xbmc.python.pluginsource" library="default.py">
+        <provides>video</provides>
+    </extension>
+    <extension point="xbmc.addon.metadata">
+        <summary lang="en_GB">Search and play olevod.com and iyf.tv videos</summary>
+        <description lang="en_GB">Kodi addon to search and stream Chinese on-demand video from olevod.com and iyf.tv directly on your TV. No PC required.</description>
+        <platform>all</platform>
+        <language>en zh</language>
+        <license>MIT</license>
+        <source>https://github.com/dunalduck0/plugin.video.cnvod</source>
+        <assets>
+            <icon>resources/media/icon.png</icon>
+            <fanart>resources/media/fanart.jpg</fanart>
+        </assets>
+    </extension>
+</addon>
