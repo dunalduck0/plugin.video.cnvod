@@ -152,8 +152,7 @@ def view_search(prefill: str = "") -> None:
 
 
 def view_vip_login() -> None:
-    """Open addon settings to the account tab, or trigger login if creds already set."""
-    olevod = PROVIDERS.get("olevod")
+    """Open addon settings to enter credentials, or trigger captcha login if creds set."""
     try:
         username = ADDON.getSetting("olevod_username").strip()
         password = ADDON.getSetting("olevod_password").strip()
@@ -163,14 +162,39 @@ def view_vip_login() -> None:
     if not username or not password:
         # No credentials yet — open settings so user can enter them
         xbmc.executebuiltin("Addon.OpenSettings(plugin.video.cnvod)")
+        xbmcplugin.endOfDirectory(HANDLE, succeeded=False)
         return
 
-    # Credentials exist — trigger login now (shows captcha dialog)
-    _configure_providers()
+    def _ask_captcha(captcha_id: str, image_b64: str) -> str:
+        import base64
+        captcha_path = os.path.join(PROFILE_DIR, "captcha.png")
+        try:
+            os.makedirs(PROFILE_DIR, exist_ok=True)
+            with open(captcha_path, "wb") as f:
+                f.write(base64.b64decode(image_b64))
+        except Exception:
+            captcha_path = ""
+        if captcha_path:
+            xbmc.executebuiltin(f"ShowPicture({captcha_path})")
+            xbmc.sleep(1500)
+        kb = xbmc.Keyboard("", "Enter captcha characters")
+        kb.doModal()
+        if captcha_path:
+            xbmc.executebuiltin("Action(Back)")
+        return kb.getText().strip() if kb.isConfirmed() else ""
+
     olevod = PROVIDERS.get("olevod")
-    if olevod and hasattr(olevod, "_token") and olevod._token:
+    try:
+        olevod.authenticate(username, password, PROFILE_DIR, ask_captcha=_ask_captcha)
         _notify("OleVOD VIP login successful ✓")
+    except Exception as e:
+        _log(f"olevod VIP login failed: {e}", xbmc.LOGWARNING)
+        _notify(f"OleVOD login failed: {e}", xbmcgui.NOTIFICATION_WARNING)
     xbmc.executebuiltin("Container.Refresh")
+    xbmcplugin.endOfDirectory(HANDLE, succeeded=False)
+
+
+def view_episodes(site: str, video_id: str) -> None:
     provider = PROVIDERS.get(site)
     if not provider:
         _notify(f"Unknown site: {site}", xbmcgui.NOTIFICATION_ERROR)
@@ -244,7 +268,7 @@ def play(site: str, video_id: str, episode: int = 1) -> None:
 # -------------------- router --------------------
 
 def _configure_providers() -> None:
-    """Apply user settings to providers (e.g. VIP credentials for olevod)."""
+    """Load cached VIP token silently at startup — never prompts for captcha."""
     olevod = PROVIDERS.get("olevod")
     if not olevod:
         return
@@ -255,33 +279,14 @@ def _configure_providers() -> None:
         return
     if not username or not password:
         return
-
-    def _ask_captcha(captcha_id: str, image_b64: str) -> str:
-        """Show captcha image via Kodi image viewer, then ask for keyboard input."""
-        import base64
-        captcha_path = os.path.join(PROFILE_DIR, "captcha.png")
-        try:
-            os.makedirs(PROFILE_DIR, exist_ok=True)
-            with open(captcha_path, "wb") as f:
-                f.write(base64.b64decode(image_b64))
-        except Exception:
-            captcha_path = ""
-        # Show captcha image in a dialog window
-        if captcha_path:
-            xbmc.executebuiltin(f"ShowPicture({captcha_path})")
-            xbmc.sleep(1500)  # give image window time to open
-        kb = xbmc.Keyboard("", "Enter captcha characters")
-        kb.doModal()
-        if captcha_path:
-            xbmc.executebuiltin("Action(Back)")  # close image viewer
-        return kb.getText().strip() if kb.isConfirmed() else ""
-
     try:
-        olevod.authenticate(username, password, PROFILE_DIR, ask_captcha=_ask_captcha)
-        _log("olevod VIP login successful")
+        # ask_captcha=None: only loads a cached token, never prompts
+        olevod.authenticate(username, password, PROFILE_DIR, ask_captcha=None)
+        _log("olevod: cached token loaded")
+    except RuntimeError:
+        pass  # No cached token yet — user must tap VIP login to authenticate
     except Exception as e:
-        _log(f"olevod VIP login failed: {e}", xbmc.LOGWARNING)
-        _notify(f"OleVOD login failed: {e}", xbmcgui.NOTIFICATION_WARNING)
+        _log(f"olevod token load failed: {e}", xbmc.LOGWARNING)
 
 
 def main() -> None:
@@ -297,6 +302,7 @@ def main() -> None:
         history.clear(PROFILE_DIR)
         _notify("Search history cleared")
         xbmc.executebuiltin("Container.Refresh")
+        xbmcplugin.endOfDirectory(HANDLE, succeeded=False)
     elif act == "vip_login":
         view_vip_login()
     elif act == "episodes":
