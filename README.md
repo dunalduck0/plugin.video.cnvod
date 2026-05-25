@@ -1,4 +1,4 @@
-# Kodi CN VOD Addon
+# OleVod — Kodi Addon
 
 Search and stream Chinese on-demand video sites (**olevod.com**, **iyf.tv**) directly inside Kodi — no PC, no DevTools, no `.strm` file shuffling.
 

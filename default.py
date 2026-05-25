@@ -30,7 +30,7 @@ from sites import PROVIDERS, StreamInfo, VideoResult  # noqa: E402
 HANDLE = int(sys.argv[1])
 BASE_URL = sys.argv[0]
 ADDON = xbmcaddon.Addon()
-ADDON_NAME = ADDON.getAddonInfo("name") or "CN VOD"
+ADDON_NAME = ADDON.getAddonInfo("name") or "OleVod"
 PROFILE_DIR = xbmcvfs.translatePath(ADDON.getAddonInfo("profile"))
 
 
@@ -88,7 +88,7 @@ def view_search(prefill: str = "") -> None:
     if prefill:
         query = prefill
     else:
-        kb = xbmc.Keyboard("", "Search olevod + iyf.tv")
+        kb = xbmc.Keyboard("", "Search OleVod")
         kb.doModal()
         if not kb.isConfirmed():
             xbmcplugin.endOfDirectory(HANDLE, succeeded=False)
