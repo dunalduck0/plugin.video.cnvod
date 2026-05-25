@@ -1,40 +1,13 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
-<settings version="2">
-    <section id="general">
-        <category id="general" label="General">
-            <group id="1">
-                <setting id="enable_olevod" type="boolean" label="Enable olevod.com">
-                    <default>true</default>
-                    <control type="toggle"/>
-                </setting>
-                <setting id="enable_iyftv" type="boolean" label="Enable iyf.tv">
-                    <default>true</default>
-                    <control type="toggle"/>
-                </setting>
-                <setting id="enable_huavod" type="boolean" label="Enable huavod.com">
-                    <default>true</default>
-                    <control type="toggle"/>
-                </setting>
-                <setting id="search_timeout" type="integer" label="Search timeout (seconds)">
-                    <default>15</default>
-                    <constraints minimum="5" maximum="60" step="1"/>
-                    <control type="slider" format="integer"/>
-                </setting>
-            </group>
-        </category>
-    </section>
-    <section id="account">
-        <category id="account" label="OleVOD VIP Account">
-            <group id="1">
-                <setting id="olevod_username" type="string" label="Username / Email">
-                    <default></default>
-                    <control type="button"/>
-                </setting>
-                <setting id="olevod_password" type="string" label="Password">
-                    <default></default>
-                    <control type="button" hidden="true"/>
-                </setting>
-            </group>
-        </category>
-    </section>
+<settings>
+    <category label="General">
+        <setting id="enable_olevod" type="bool" label="Enable olevod.com" default="true"/>
+        <setting id="enable_iyftv" type="bool" label="Enable iyf.tv" default="true"/>
+        <setting id="enable_huavod" type="bool" label="Enable huavod.com" default="true"/>
+        <setting id="search_timeout" type="slider" label="Search timeout (seconds)" default="15" range="5,1,60" option="int"/>
+    </category>
+    <category label="OleVOD VIP Account">
+        <setting id="olevod_username" type="text" label="Username / Email" default=""/>
+        <setting id="olevod_password" type="text" label="Password" option="hidden" default=""/>
+    </category>
 </settings>

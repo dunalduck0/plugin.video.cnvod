@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<addon id="repository.cnvod"
+       name="OleVod Repository"
+       version="1.0.0"
+       provider-name="dunalduck0">
+    <requires>
+        <import addon="xbmc.addon" version="12.0.0"/>
+    </requires>
+    <extension point="xbmc.addon.repository" name="OleVod Repository">
+        <info compressed="false">https://raw.githubusercontent.com/dunalduck0/plugin.video.cnvod/main/repo/addons.xml</info>
+        <checksum>https://raw.githubusercontent.com/dunalduck0/plugin.video.cnvod/main/repo/addons.xml.md5</checksum>
+        <datadir zip="true">https://raw.githubusercontent.com/dunalduck0/plugin.video.cnvod/main/repo/</datadir>
+    </extension>
+    <extension point="xbmc.addon.metadata">
+        <summary lang="en_GB">OleVod Repository</summary>
+        <description lang="en_GB">Auto-update repository for OleVod (plugin.video.cnvod)</description>
+        <platform>all</platform>
+    </extension>
+</addon>

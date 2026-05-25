@@ -1,8 +1,7 @@
 name: release
 
-# Build the Kodi-installable zip and publish a GitHub release whenever a
-# tag like `v0.2.0` is pushed. The zip MUST have a single top-level folder
-# named exactly `<addon id>` for Kodi to accept it.
+# Build the Kodi-installable zip, update the addon repository index, and
+# publish a GitHub release whenever a tag like `v0.2.0` is pushed.
 
 on:
   push:
@@ -17,6 +16,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Read addon id and version
         id: meta
@@ -34,12 +35,12 @@ jobs:
           VERSION="${{ steps.meta.outputs.version }}"
           STAGE="$(mktemp -d)/$ID"
           mkdir -p "$STAGE"
-          # Copy addon contents, excluding dev-only paths
           rsync -a \
             --exclude='.git' \
             --exclude='.github' \
             --exclude='dist' \
             --exclude='tools' \
+            --exclude='repo' \
             --exclude='build.ps1' \
             --exclude='__pycache__' \
             --exclude='.vscode' \
@@ -58,8 +59,21 @@ jobs:
             exit 1
           fi
 
+      - name: Update Kodi repository index
+        run: python3 tools/generate_repo.py
+
+      - name: Commit repo index
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add repo/
+          git diff --staged --quiet || git commit -m "Update repo index for v${{ steps.meta.outputs.version }} [skip ci]"
+          git push origin HEAD:main
+
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/${{ steps.meta.outputs.id }}-${{ steps.meta.outputs.version }}.zip
+          files: |
+            dist/${{ steps.meta.outputs.id }}-${{ steps.meta.outputs.version }}.zip
+            repo/repository.cnvod/repository.cnvod-1.0.0.zip
           generate_release_notes: true
