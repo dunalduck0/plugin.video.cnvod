@@ -69,6 +69,24 @@ def view_root() -> None:
     item.setArt({"icon": "DefaultAddonsSearch.png"})
     xbmcplugin.addDirectoryItem(HANDLE, _url(act="search"), item, isFolder=True)
 
+    # Show login status / account entry
+    olevod = PROVIDERS.get("olevod")
+    if olevod and hasattr(olevod, "_token") and olevod._token:
+        acct_label = "[COLOR green]✓ OleVOD VIP logged in[/COLOR]"
+    else:
+        username = ""
+        try:
+            username = ADDON.getSetting("olevod_username").strip()
+        except Exception:
+            pass
+        if username:
+            acct_label = "[COLOR yellow]⚠ OleVOD VIP — tap to login[/COLOR]"
+        else:
+            acct_label = "[COLOR grey]OleVOD VIP — tap to set credentials[/COLOR]"
+    acct_item = xbmcgui.ListItem(label=acct_label)
+    acct_item.setArt({"icon": "DefaultAddonProgram.png"})
+    xbmcplugin.addDirectoryItem(HANDLE, _url(act="vip_login"), acct_item, isFolder=False)
+
     recent = history.load(PROFILE_DIR)
     for q in recent:
         ri = xbmcgui.ListItem(label=q)
@@ -133,7 +151,26 @@ def view_search(prefill: str = "") -> None:
     xbmcplugin.endOfDirectory(HANDLE)
 
 
-def view_episodes(site: str, video_id: str) -> None:
+def view_vip_login() -> None:
+    """Open addon settings to the account tab, or trigger login if creds already set."""
+    olevod = PROVIDERS.get("olevod")
+    try:
+        username = ADDON.getSetting("olevod_username").strip()
+        password = ADDON.getSetting("olevod_password").strip()
+    except Exception:
+        username = password = ""
+
+    if not username or not password:
+        # No credentials yet — open settings so user can enter them
+        xbmc.executebuiltin("Addon.OpenSettings(plugin.video.cnvod)")
+        return
+
+    # Credentials exist — trigger login now (shows captcha dialog)
+    _configure_providers()
+    olevod = PROVIDERS.get("olevod")
+    if olevod and hasattr(olevod, "_token") and olevod._token:
+        _notify("OleVOD VIP login successful ✓")
+    xbmc.executebuiltin("Container.Refresh")
     provider = PROVIDERS.get(site)
     if not provider:
         _notify(f"Unknown site: {site}", xbmcgui.NOTIFICATION_ERROR)
@@ -220,7 +257,7 @@ def _configure_providers() -> None:
         return
 
     def _ask_captcha(captcha_id: str, image_b64: str) -> str:
-        """Show captcha image and keyboard dialog; return user's text input."""
+        """Show captcha image via Kodi image viewer, then ask for keyboard input."""
         import base64
         captcha_path = os.path.join(PROFILE_DIR, "captcha.png")
         try:
@@ -229,15 +266,14 @@ def _configure_providers() -> None:
                 f.write(base64.b64decode(image_b64))
         except Exception:
             captcha_path = ""
-        # Show image in a dialog then ask for input
+        # Show captcha image in a dialog window
         if captcha_path:
-            img_dialog = xbmcgui.Dialog()
-            img_dialog.ok(
-                "OleVOD Login — Enter Captcha",
-                f"Please look at the captcha image:[CR]{captcha_path}[CR]Then click OK and type the characters."
-            )
-        kb = xbmc.Keyboard("", "OleVOD Captcha")
+            xbmc.executebuiltin(f"ShowPicture({captcha_path})")
+            xbmc.sleep(1500)  # give image window time to open
+        kb = xbmc.Keyboard("", "Enter captcha characters")
         kb.doModal()
+        if captcha_path:
+            xbmc.executebuiltin("Action(Back)")  # close image viewer
         return kb.getText().strip() if kb.isConfirmed() else ""
 
     try:
@@ -261,6 +297,8 @@ def main() -> None:
         history.clear(PROFILE_DIR)
         _notify("Search history cleared")
         xbmc.executebuiltin("Container.Refresh")
+    elif act == "vip_login":
+        view_vip_login()
     elif act == "episodes":
         view_episodes(params.get("site", ""), params.get("id", ""))
     elif act == "play":
