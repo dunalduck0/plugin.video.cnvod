@@ -9,6 +9,8 @@ Both run on the Kodi device, so the underlying HTTP calls happen from the
 user's TV (important for IP-bound streams like iyf.tv).
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 
 

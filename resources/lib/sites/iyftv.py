@@ -8,6 +8,8 @@ Until then this provider is registered but raises NotImplementedError if
 called, so the addon stays usable for olevod alone.
 """
 
+from __future__ import annotations
+
 from .base import Episode, SiteProvider, StreamInfo, VideoResult
 
 
