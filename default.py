@@ -162,8 +162,15 @@ def view_vip_login() -> None:
     if not username or not password:
         # No credentials yet — open settings so user can enter them
         xbmc.executebuiltin("Addon.OpenSettings(plugin.video.cnvod)")
-        xbmcplugin.endOfDirectory(HANDLE, succeeded=False)
-        return
+        # Re-read after settings dialog closes (it's synchronous)
+        try:
+            username = ADDON.getSetting("olevod_username").strip()
+            password = ADDON.getSetting("olevod_password").strip()
+        except Exception:
+            username = password = ""
+        if not username or not password:
+            xbmcplugin.endOfDirectory(HANDLE, succeeded=False)
+            return
 
     def _ask_captcha(captcha_id: str, image_b64: str) -> str:
         import base64
@@ -284,7 +291,9 @@ def _configure_providers() -> None:
         olevod.authenticate(username, password, PROFILE_DIR, ask_captcha=None)
         _log("olevod: cached token loaded")
     except RuntimeError:
-        pass  # No cached token yet — user must tap VIP login to authenticate
+        # Credentials set but no cached token — guide user to VIP Login item
+        _notify("OleVOD: tap 'VIP Login' in the menu to complete login",
+                xbmcgui.NOTIFICATION_INFO, time=6000)
     except Exception as e:
         _log(f"olevod token load failed: {e}", xbmc.LOGWARNING)
 
