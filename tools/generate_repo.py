@@ -40,8 +40,12 @@ def main():
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
         for fname in ("addon.xml", "default.py"):
             zf.write(os.path.join(ROOT, fname), f"plugin.video.cnvod/{fname}")
-        for dirpath, _, filenames in os.walk(os.path.join(ROOT, "resources")):
+        for dirpath, dirnames, filenames in os.walk(os.path.join(ROOT, "resources")):
+            # Skip __pycache__ directories
+            dirnames[:] = [d for d in dirnames if d != "__pycache__"]
             for filename in filenames:
+                if filename.endswith(".pyc"):
+                    continue
                 full = os.path.join(dirpath, filename)
                 rel = os.path.relpath(full, ROOT).replace("\\", "/")
                 zf.write(full, f"plugin.video.cnvod/{rel}")
