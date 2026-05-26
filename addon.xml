@@ -20,8 +20,8 @@
         <license>MIT</license>
         <source>https://github.com/dunalduck0/plugin.video.cnvod</source>
         <assets>
-            <icon>resources/media/icon.png</icon>
-            <fanart>resources/media/fanart.jpg</fanart>
+            <icon></icon>
+            <fanart></fanart>
         </assets>
     </extension>
 </addon>

@@ -8,9 +8,9 @@
     </requires>
     <extension point="xbmc.addon.repository" name="OleVod Repository">
         <dir minversion="19.0.0">
-            <info compressed="false">https://raw.githubusercontent.com/dunalduck0/plugin.video.cnvod/main/docs/addons.xml</info>
-            <checksum>https://raw.githubusercontent.com/dunalduck0/plugin.video.cnvod/main/docs/addons.xml.md5</checksum>
-            <datadir zip="true">https://raw.githubusercontent.com/dunalduck0/plugin.video.cnvod/main/docs/</datadir>
+            <info compressed="false">https://github.com/dunalduck0/plugin.video.cnvod/raw/main/addons.xml</info>
+            <checksum>https://github.com/dunalduck0/plugin.video.cnvod/raw/main/addons.xml.md5</checksum>
+            <datadir zip="true">https://github.com/dunalduck0/plugin.video.cnvod/raw/main/docs/</datadir>
         </dir>
     </extension>
     <extension point="xbmc.addon.metadata">
