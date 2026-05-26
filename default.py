@@ -152,26 +152,39 @@ def view_search(prefill: str = "") -> None:
 
 
 def view_vip_login() -> None:
-    """Open addon settings to enter credentials, or trigger captcha login if creds set."""
+    """Interactive VIP login: prompt for username, password, then captcha."""
+    # Step 1: username
+    cur_user = ""
     try:
-        username = ADDON.getSetting("olevod_username").strip()
-        password = ADDON.getSetting("olevod_password").strip()
+        cur_user = ADDON.getSetting("olevod_username").strip()
     except Exception:
-        username = password = ""
+        pass
+    kb_user = xbmc.Keyboard(cur_user, "OleVOD Username / Email")
+    kb_user.doModal()
+    if not kb_user.isConfirmed() or not kb_user.getText().strip():
+        xbmcplugin.endOfDirectory(HANDLE, succeeded=False)
+        return
+    username = kb_user.getText().strip()
 
-    if not username or not password:
-        # No credentials yet — open settings so user can enter them
-        xbmc.executebuiltin("Addon.OpenSettings(plugin.video.cnvod)")
-        # Re-read after settings dialog closes (it's synchronous)
-        try:
-            username = ADDON.getSetting("olevod_username").strip()
-            password = ADDON.getSetting("olevod_password").strip()
-        except Exception:
-            username = password = ""
-        if not username or not password:
-            xbmcplugin.endOfDirectory(HANDLE, succeeded=False)
-            return
+    # Step 2: password
+    cur_pass = ""
+    try:
+        cur_pass = ADDON.getSetting("olevod_password").strip()
+    except Exception:
+        pass
+    kb_pass = xbmc.Keyboard(cur_pass, "OleVOD Password")
+    kb_pass.setHiddenInput(True)
+    kb_pass.doModal()
+    if not kb_pass.isConfirmed() or not kb_pass.getText().strip():
+        xbmcplugin.endOfDirectory(HANDLE, succeeded=False)
+        return
+    password = kb_pass.getText().strip()
 
+    # Save credentials to settings
+    ADDON.setSetting("olevod_username", username)
+    ADDON.setSetting("olevod_password", password)
+
+    # Step 3: fetch captcha image, show it, ask user to type it
     def _ask_captcha(captcha_id: str, image_b64: str) -> str:
         import base64
         captcha_path = os.path.join(PROFILE_DIR, "captcha.png")
