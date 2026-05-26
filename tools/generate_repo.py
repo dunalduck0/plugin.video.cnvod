@@ -6,7 +6,7 @@ import shutil
 import xml.etree.ElementTree as ET
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-REPO_DIR = os.path.join(ROOT, "repo")
+REPO_DIR = os.path.join(ROOT, "docs")
 
 
 def _parse(path):
