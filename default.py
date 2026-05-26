@@ -58,8 +58,8 @@ def _url(**kwargs) -> str:
     )
 
 
-def _notify(msg: str, icon: str = xbmcgui.NOTIFICATION_INFO) -> None:
-    xbmcgui.Dialog().notification(ADDON_NAME, msg, icon, 4000)
+def _notify(msg: str, icon: str = xbmcgui.NOTIFICATION_INFO, time: int = 4000) -> None:
+    xbmcgui.Dialog().notification(ADDON_NAME, msg, icon, time)
 
 
 # -------------------- views --------------------
