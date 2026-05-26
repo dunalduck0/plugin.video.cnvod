@@ -23,7 +23,7 @@
         </assets>
     </extension>
 </addon>
-<addon id="repository.cnvod" name="OleVod Repository" version="1.0.2" provider-name="dunalduck0">
+<addon id="repository.cnvod" name="OleVod Repository" version="1.0.3" provider-name="dunalduck0">
     <requires>
         <import addon="xbmc.addon" version="12.0.0" />
     </requires>
