@@ -158,9 +158,25 @@ class HuaVod(SiteProvider):
         vod_name = (info.get("vod_data") or {}).get("vod_name") or ""
         from_tag = info.get("from", "")
 
-        # Step 2: if this is an ART* player, resolve via ec.php
-        if from_tag.upper().startswith("ART"):
-            m3u8_url = self._resolve_ec(encoded_url, vod_name)
+        # Step 2: if this is an ART* or DPA* player, resolve via ec.php
+        code = "qw" if from_tag.upper().startswith("DP") else "ok"
+        if from_tag.upper().startswith("ART") or from_tag.upper().startswith("DP"):
+            m3u8_url = self._resolve_ec(encoded_url, vod_name, code=code)
+            # cdnhr.b-cdn.net is a P2P-only CDN — probe it and raise a clear error
+            # rather than returning a URL that Kodi will silently fail to open.
+            if "b-cdn.net" in m3u8_url:
+                try:
+                    probe = _get(m3u8_url)
+                    if probe.status_code >= 400:
+                        raise RuntimeError(
+                            "huavod: stream uses P2P-only CDN, not playable in Kodi"
+                        )
+                except RuntimeError:
+                    raise
+                except Exception:
+                    raise RuntimeError(
+                        "huavod: stream uses P2P-only CDN, not playable in Kodi"
+                    )
             return StreamInfo(
                 url=m3u8_url,
                 headers={
@@ -187,10 +203,10 @@ class HuaVod(SiteProvider):
             f"huavod: unsupported player type '{from_tag}' — cannot resolve stream"
         )
 
-    def _resolve_ec(self, encoded_url: str, title: str) -> str:
+    def _resolve_ec(self, encoded_url: str, title: str, code: str = "ok") -> str:
         """Fetch ec.php and extract the HLS URL from window.HR_P2P.channel_key."""
         ec_url = PLAYER_BASE + "/ec.php"
-        params = {"code": "ok", "url": encoded_url, "tittle": title}
+        params = {"code": code, "url": encoded_url, "tittle": title}
         resp = _get(ec_url, params=params)
         html = resp.text
 

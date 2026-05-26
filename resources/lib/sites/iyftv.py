@@ -122,10 +122,21 @@ class IyfTv(SiteProvider):
                 (item.get("languagesPlayList") or {}).get("playList") or []
             )
             ep_count = len(play_list)
+            # Encode episode keys into the video ID so list_episodes() can return
+            # per-episode entries without an extra API call.
+            # Format: "series_contxt|ep1_key:ep1_name|ep2_key:ep2_name|..."
+            if ep_count > 1 and play_list:
+                ep_parts = "|".join(
+                    f"{ep.get('key', '')}:{ep.get('name', str(i))}"
+                    for i, ep in enumerate(play_list, 1)
+                )
+                video_id = f"{contxt}|{ep_parts}"
+            else:
+                video_id = contxt
             out.append(
                 VideoResult(
                     site=self.id,
-                    id=contxt,
+                    id=video_id,
                     title=item.get("title") or "",
                     subtitle=item.get("lastName") or "",
                     thumbnail=item.get("imgPath") or None,
@@ -137,10 +148,24 @@ class IyfTv(SiteProvider):
         return out
 
     def list_episodes(self, video_id: str) -> list[Episode]:
-        # video_id is the series/content contxt key.
-        # The play API returns a stream for the contxt key (typically EP1/default).
-        # Per-episode selection is not yet supported; all episodes resolve via contxt.
-        return [Episode(index=1, title="Play", url=video_id)]
+        """Return episode list decoded from the video_id.
+
+        video_id is either:
+        - A bare series contxt (movie/single) → one "Play" entry
+        - An encoded "series_contxt|key1:name1|key2:name2|..." string →
+          one Episode per segment, each with url=episode_contxt_key
+        """
+        if "|" not in video_id:
+            return [Episode(index=1, title="Play", url=video_id)]
+        parts = video_id.split("|")
+        episodes = []
+        for i, part in enumerate(parts[1:], 1):
+            if ":" in part:
+                ep_key, ep_name = part.split(":", 1)
+            else:
+                ep_key, ep_name = part, str(i)
+            episodes.append(Episode(index=i, title=ep_name, url=ep_key))
+        return episodes
 
     def resolve(self, video_id: str, episode_index: int = 1) -> StreamInfo:
         # video_id is always the contxt key — use it directly as the API id.

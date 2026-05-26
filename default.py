@@ -244,7 +244,7 @@ def view_episodes(site: str, video_id: str) -> None:
         ep = episodes[0]
         item = xbmcgui.ListItem(label=ep.title)
         item.setProperty("IsPlayable", "true")
-        url = _url(act="play", site=site, id=video_id, ep=ep.index)
+        url = _url(act="play", site=site, id=ep.url, ep=ep.index)
         xbmcplugin.addDirectoryItem(HANDLE, url, item, isFolder=False)
         xbmcplugin.setContent(HANDLE, "videos")
         xbmcplugin.endOfDirectory(HANDLE)
@@ -253,7 +253,7 @@ def view_episodes(site: str, video_id: str) -> None:
     for ep in episodes:
         item = xbmcgui.ListItem(label=ep.title)
         item.setProperty("IsPlayable", "true")
-        url = _url(act="play", site=site, id=video_id, ep=ep.index)
+        url = _url(act="play", site=site, id=ep.url, ep=ep.index)
         xbmcplugin.addDirectoryItem(HANDLE, url, item, isFolder=False)
 
     xbmcplugin.setContent(HANDLE, "episodes")
