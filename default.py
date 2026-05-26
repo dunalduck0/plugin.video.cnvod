@@ -195,8 +195,15 @@ def view_vip_login() -> None:
         olevod.authenticate(username, password, PROFILE_DIR, ask_captcha=_ask_captcha)
         _notify("OleVOD VIP login successful ✓")
     except Exception as e:
-        _log(f"olevod VIP login failed: {e}", xbmc.LOGWARNING)
-        _notify(f"OleVOD login failed: {e}", xbmcgui.NOTIFICATION_WARNING)
+        msg = str(e)
+        _log(f"olevod VIP login failed: {msg}", xbmc.LOGWARNING)
+        if "502" in msg or "503" in msg or "Bad Gateway" in msg:
+            friendly = "OleVOD login: server unavailable, try again later"
+        elif "captcha" in msg.lower():
+            friendly = "OleVOD login: captcha failed, try again"
+        else:
+            friendly = f"OleVOD login failed: {msg[:80]}"
+        _notify(friendly, xbmcgui.NOTIFICATION_WARNING)
     xbmc.executebuiltin("Container.Refresh")
     xbmcplugin.endOfDirectory(HANDLE, succeeded=False)
 
