@@ -69,10 +69,6 @@ def view_root() -> None:
     item.setArt({"icon": "DefaultAddonsSearch.png"})
     xbmcplugin.addDirectoryItem(HANDLE, _url(act="search"), item, isFolder=True)
 
-    clip_item = xbmcgui.ListItem(label="📋 Search from clipboard")
-    clip_item.setArt({"icon": "DefaultAddonsSearch.png"})
-    xbmcplugin.addDirectoryItem(HANDLE, _url(act="search_clipboard"), clip_item, isFolder=True)
-
     # Show login status / account entry
     olevod = PROVIDERS.get("olevod")
     if olevod and hasattr(olevod, "_token") and olevod._token:
@@ -106,28 +102,7 @@ def view_root() -> None:
     xbmcplugin.endOfDirectory(HANDLE)
 
 
-def _get_clipboard() -> str:
-    """Read text from the system clipboard. Returns empty string on failure."""
-    try:
-        import ctypes
-        CF_UNICODETEXT = 13
-        ctypes.windll.user32.OpenClipboard(0)
-        try:
-            handle = ctypes.windll.user32.GetClipboardData(CF_UNICODETEXT)
-            if not handle:
-                return ""
-            ptr = ctypes.windll.kernel32.GlobalLock(handle)
-            try:
-                return ctypes.wstring_at(ptr).strip()
-            finally:
-                ctypes.windll.kernel32.GlobalUnlock(handle)
-        finally:
-            ctypes.windll.user32.CloseClipboard()
-    except Exception:
-        return ""
-
-
-
+def view_search(prefill: str = "") -> None:
     if prefill:
         query = prefill
     else:
@@ -332,13 +307,6 @@ def main() -> None:
         view_root()
     elif act == "search":
         view_search(params.get("q", ""))
-    elif act == "search_clipboard":
-        text = _get_clipboard()
-        if text:
-            view_search(text)
-        else:
-            _notify("Clipboard is empty — copy Chinese text first", xbmcgui.NOTIFICATION_WARNING)
-            xbmcplugin.endOfDirectory(HANDLE, succeeded=False)
     elif act == "clear_history":
         history.clear(PROFILE_DIR)
         _notify("Search history cleared")
