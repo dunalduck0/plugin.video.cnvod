@@ -163,7 +163,10 @@ class HuaVod(SiteProvider):
             m3u8_url = self._resolve_ec(encoded_url, vod_name)
             return StreamInfo(
                 url=m3u8_url,
-                headers={"Referer": BASE_URL + "/"},
+                headers={
+                    "Referer": PLAYER_BASE + "/",
+                    "User-Agent": _HEADERS["User-Agent"],
+                },
                 title=vod_name,
                 is_hls=True,
             )
@@ -172,7 +175,10 @@ class HuaVod(SiteProvider):
         if encoded_url.startswith("http"):
             return StreamInfo(
                 url=encoded_url,
-                headers={"Referer": BASE_URL + "/"},
+                headers={
+                    "Referer": BASE_URL + "/",
+                    "User-Agent": _HEADERS["User-Agent"],
+                },
                 title=vod_name,
                 is_hls=encoded_url.endswith(".m3u8"),
             )

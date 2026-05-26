@@ -265,7 +265,8 @@ def play(site: str, video_id: str, episode: int = 1) -> None:
         # Kodi 19/20 uses inputstream.adaptive.manifest_type; Kodi 21+ ignores it.
         item.setProperty("inputstream.adaptive.manifest_type", "hls")
         if info.headers:
-            hdrs = urllib.parse.urlencode(info.headers)
+            # inputstream.adaptive expects "Key=Value&Key2=Value2" — NOT percent-encoded
+            hdrs = "&".join(f"{k}={v}" for k, v in info.headers.items())
             item.setProperty("inputstream.adaptive.stream_headers", hdrs)
             item.setProperty("inputstream.adaptive.manifest_headers", hdrs)
 
