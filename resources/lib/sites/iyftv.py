@@ -168,13 +168,13 @@ class IyfTv(SiteProvider):
         return episodes
 
     def resolve(self, video_id: str, episode_index: int = 1) -> StreamInfo:
-        # video_id is always the contxt key — use it directly as the API id.
-        # Param order must match JS urlBuilder for "video-media" route so that
-        # the vv signature is computed over the same query string the server expects.
+        # video_id is the episode-specific contxt key (from list_episodes ep.url).
+        # Web player always uses a=0 and passes the episode key directly as id.
+        # a=1 was wrong — it made the server reject episode keys ("video not found").
         params = {
             "cinema": CINEMA,
             "id": video_id,
-            "a": 1,
+            "a": 0,
             "lang": "none",
             "usersign": 1,
             "region": "US",
