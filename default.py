@@ -235,6 +235,12 @@ def view_episodes(site: str, video_id: str) -> None:
         xbmcplugin.endOfDirectory(HANDLE, succeeded=False)
         return
 
+    def _ep_play_id(ep_url: str) -> str:
+        # iyf.tv encodes the per-episode contxt key in ep.url (short alphanum).
+        # OleVOD / HuaVod set ep.url to a stream URL or the series ID — in
+        # those cases use the original video_id and rely on episode_index.
+        return ep_url if not ep_url.startswith("http") else video_id
+
     if len(episodes) == 1:
         # Movie with a single stream: show it as a directly-playable item.
         # We MUST still call endOfDirectory (this is a directory handle), so
@@ -244,7 +250,7 @@ def view_episodes(site: str, video_id: str) -> None:
         ep = episodes[0]
         item = xbmcgui.ListItem(label=ep.title)
         item.setProperty("IsPlayable", "true")
-        url = _url(act="play", site=site, id=ep.url, ep=ep.index)
+        url = _url(act="play", site=site, id=_ep_play_id(ep.url), ep=ep.index)
         xbmcplugin.addDirectoryItem(HANDLE, url, item, isFolder=False)
         xbmcplugin.setContent(HANDLE, "videos")
         xbmcplugin.endOfDirectory(HANDLE)
@@ -253,7 +259,7 @@ def view_episodes(site: str, video_id: str) -> None:
     for ep in episodes:
         item = xbmcgui.ListItem(label=ep.title)
         item.setProperty("IsPlayable", "true")
-        url = _url(act="play", site=site, id=ep.url, ep=ep.index)
+        url = _url(act="play", site=site, id=_ep_play_id(ep.url), ep=ep.index)
         xbmcplugin.addDirectoryItem(HANDLE, url, item, isFolder=False)
 
     xbmcplugin.setContent(HANDLE, "episodes")
