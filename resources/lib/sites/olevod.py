@@ -295,6 +295,9 @@ class OleVod(SiteProvider):
         return self._api_get(f"/v1/pub/vod/detail/{video_id}/true")
 
     def list_episodes(self, video_id: str) -> list[Episode]:
+        if video_id.startswith("live:"):
+            # Sports/live items are single-stream — synthesise one episode.
+            return [Episode(index=1, title="回放", url=video_id)]
         d = self._detail(video_id)
         return [
             Episode(
@@ -306,6 +309,8 @@ class OleVod(SiteProvider):
         ]
 
     def resolve(self, video_id: str, episode_index: int = 1) -> StreamInfo:
+        if video_id.startswith("live:"):
+            return self._resolve_live(video_id)
         d = self._detail(video_id)
         urls = d.get("urls") or []
         if not urls:
@@ -320,5 +325,62 @@ class OleVod(SiteProvider):
             headers=dict(PLAYBACK_HEADERS),
             title=f"{d.get('name','')} - {chosen.get('title','')}".strip(" -"),
             thumbnail=_full_pic(d.get("pic")),
+            is_hls=True,
+        )
+
+    # -------------------- 赛事直播 (sports live) --------------------
+
+    def list_sports(self, count: int = 12) -> list[VideoResult]:
+        """Return the latest matches from the home-page 赛事直播 carousel.
+
+        Each result's id is `live:{match_id}:{stream_id}` so resolve() can
+        route it to the live API instead of the regular vod/detail path.
+        """
+        data = self._api_get(f"/v1/pub/index/lives/live/0/0/{count}")
+        items = data if isinstance(data, list) else (data.get("data") or [])
+        out: list[VideoResult] = []
+        for it in items:
+            mid = it.get("id")
+            stream = it.get("streamId") or ""
+            if not mid or not stream:
+                continue
+            title = it.get("title") or ""
+            mt = it.get("matchTime") or ""
+            # "VIP" flag isn't on this payload, but liveHasVod indicates replay
+            # is available. liveAlive indicates a live broadcast in progress.
+            status = "🔴 直播" if it.get("liveAlive") else ("回放" if it.get("liveHasVod") else "预告")
+            out.append(
+                VideoResult(
+                    site=self.id,
+                    id=f"live:{mid}:{stream}",
+                    title=title,
+                    subtitle=f"{status} · {mt}".strip(" ·"),
+                    thumbnail=it.get("currentImg") or None,
+                    plot=f"{it.get('homeName','')} vs {it.get('awayName','')}".strip(" vs"),
+                )
+            )
+        return out
+
+    def _resolve_live(self, composite_id: str) -> StreamInfo:
+        # composite_id = "live:{id}:{streamId}"
+        parts = composite_id.split(":", 2)
+        if len(parts) != 3:
+            raise RuntimeError(f"olevod: malformed live id {composite_id!r}")
+        _, mid, stream = parts
+        data = self._api_get(f"/v1/pub/live/info/live/{mid}/{stream}/0")
+        detail = (data or {}).get("detail") or {}
+        url = detail.get("hls") or detail.get("flv") or ""
+        if not url:
+            if detail.get("liveAlive") is False and detail.get("liveHasVod") is False:
+                raise RuntimeError("olevod: 比赛尚未开始 (match has not started)")
+            raise RuntimeError("olevod: no playable URL for this match")
+        title = detail.get("title") or ""
+        if detail.get("homeName") and detail.get("awayName"):
+            title = f"{detail['homeName']} vs {detail['awayName']}"
+        return StreamInfo(
+            url=url,
+            headers=dict(PLAYBACK_HEADERS),
+            title=title,
+            thumbnail=detail.get("livingBreakImg") or None,
             is_hls=True,
         )

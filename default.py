@@ -69,6 +69,10 @@ def view_root() -> None:
     item.setArt({"icon": "DefaultAddonsSearch.png"})
     xbmcplugin.addDirectoryItem(HANDLE, _url(act="search"), item, isFolder=True)
 
+    sports = xbmcgui.ListItem(label="[B]赛事直播[/B] / Sports")
+    sports.setArt({"icon": "DefaultAddonProgram.png"})
+    xbmcplugin.addDirectoryItem(HANDLE, _url(act="sports"), sports, isFolder=True)
+
     # Show login status / account entry
     olevod = PROVIDERS.get("olevod")
     if olevod and hasattr(olevod, "_token") and olevod._token:
@@ -221,6 +225,44 @@ def view_vip_login() -> None:
     xbmcplugin.endOfDirectory(HANDLE, succeeded=False)
 
 
+def view_sports() -> None:
+    """Render the OleVOD home-page 赛事直播 carousel as playable items."""
+    olevod = PROVIDERS.get("olevod")
+    if not olevod or not hasattr(olevod, "list_sports"):
+        _notify("OleVOD provider unavailable", xbmcgui.NOTIFICATION_ERROR)
+        xbmcplugin.endOfDirectory(HANDLE, succeeded=False)
+        return
+    try:
+        items = olevod.list_sports(count=12)
+    except Exception as e:  # noqa: BLE001
+        _log(f"olevod sports list failed: {e}", xbmc.LOGERROR)
+        _notify(str(e), xbmcgui.NOTIFICATION_ERROR)
+        xbmcplugin.endOfDirectory(HANDLE, succeeded=False)
+        return
+
+    if not items:
+        _notify("No matches found")
+        xbmcplugin.endOfDirectory(HANDLE, succeeded=False)
+        return
+
+    for r in items:
+        label = r.title
+        if r.subtitle:
+            label += f" [{r.subtitle}]"
+        item = xbmcgui.ListItem(label=label)
+        item.setProperty("IsPlayable", "true")
+        item.setArt({"thumb": r.thumbnail or "", "poster": r.thumbnail or ""})
+        info = item.getVideoInfoTag()
+        info.setTitle(r.title)
+        if r.plot:
+            info.setPlot(r.plot)
+        url = _url(act="play", site=r.site, id=r.id, ep=1)
+        xbmcplugin.addDirectoryItem(HANDLE, url, item, isFolder=False)
+
+    xbmcplugin.setContent(HANDLE, "videos")
+    xbmcplugin.endOfDirectory(HANDLE)
+
+
 def view_episodes(site: str, video_id: str) -> None:
     provider = PROVIDERS.get(site)
     if not provider:
@@ -341,6 +383,8 @@ def main() -> None:
         xbmcplugin.endOfDirectory(HANDLE, succeeded=False)
     elif act == "vip_login":
         view_vip_login()
+    elif act == "sports":
+        view_sports()
     elif act == "episodes":
         view_episodes(params.get("site", ""), params.get("id", ""))
     elif act == "play":
