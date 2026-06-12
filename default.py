@@ -322,7 +322,19 @@ def play(site: str, video_id: str, episode: int = 1) -> None:
         xbmcplugin.setResolvedUrl(HANDLE, False, xbmcgui.ListItem())
         return
 
-    item = xbmcgui.ListItem(label=info.title or video_id, path=info.url)
+    # Sentinel header from the provider: forces HTTP/1.1 via Kodi's URL
+    # options (some servers — notably newlive.olelive.com — break under
+    # HTTP/2 with CURLE_HTTP2_STREAM).
+    headers = dict(info.headers or {})
+    http_version = headers.pop("__HTTP_VERSION__", None)
+    url = info.url
+    if http_version:
+        # Append |HTTP-Version=1.1 to the URL — CCurlFile parses this and
+        # sets CURLOPT_HTTP_VERSION before opening the connection.
+        sep = "&" if "|" in url else "|"
+        url = f"{url}{sep}HTTP-Version={http_version}"
+
+    item = xbmcgui.ListItem(label=info.title or video_id, path=url)
     if info.thumbnail:
         item.setArt({"thumb": info.thumbnail})
 
@@ -332,9 +344,9 @@ def play(site: str, video_id: str, episode: int = 1) -> None:
         item.setProperty("inputstream", "inputstream.adaptive")
         # Kodi 19/20 uses inputstream.adaptive.manifest_type; Kodi 21+ ignores it.
         item.setProperty("inputstream.adaptive.manifest_type", "hls")
-        if info.headers:
+        if headers:
             # inputstream.adaptive expects "Key=Value&Key2=Value2" — NOT percent-encoded
-            hdrs = "&".join(f"{k}={v}" for k, v in info.headers.items())
+            hdrs = "&".join(f"{k}={v}" for k, v in headers.items())
             item.setProperty("inputstream.adaptive.stream_headers", hdrs)
             item.setProperty("inputstream.adaptive.manifest_headers", hdrs)
 

@@ -379,34 +379,43 @@ class OleVod(SiteProvider):
         # a placeholder image whose inner variant 503s. The web player appends
         # `?token=<_vv(now)>` (PlayerMatch chunk: `a.hls + "?token=" + l` where
         # l = p(indexData.key, true, streamId) → just _vv(timestamp), the args
-        # are ignored). Apply the same trick, then verify the inner variant
-        # is actually serving — upcoming matches return 404 there.
+        # are ignored). Apply the same trick and resolve to the inner stream.
+        force_http1 = False
         if "/dis/" in url:
             token = _vv(int(time.time()))
             url = url + ("&" if "?" in url else "?") + "token=" + token
             try:
-                r = requests.get(url, headers=PLAYBACK_HEADERS, timeout=DEFAULT_TIMEOUT)
-                body = r.text
+                body = requests.get(url, headers=PLAYBACK_HEADERS,
+                                    timeout=DEFAULT_TIMEOUT).text
                 if "/hls/break/" in body:
                     raise RuntimeError("比赛尚未开播 (broadcast not yet live)")
-                # Master points at a real broadcast server — confirm the inner
-                # playlist exists (returns 404 for matches that haven't started).
+                # Pre-resolve to the inner variant. newlive.olelive.com (which
+                # serves these) has a broken HTTP/2 framing layer — Kodi's curl
+                # fails with CURLE_HTTP2_STREAM (92). Pass the inner URL and
+                # force HTTP/1.1 at the Kodi URL layer (see play() handler).
                 import re as _re
                 m = _re.search(r"https?://\S+\.m3u8\S*", body)
                 if m:
-                    head = requests.get(m.group(0), headers=PLAYBACK_HEADERS,
+                    inner = m.group(0)
+                    head = requests.get(inner, headers=PLAYBACK_HEADERS,
                                         timeout=DEFAULT_TIMEOUT, stream=True)
                     if head.status_code in (404, 503):
                         raise RuntimeError("比赛尚未开播 (broadcast not yet live)")
+                    url = inner
+                    force_http1 = True
             except requests.RequestException:
                 pass  # let Kodi try anyway
         title = detail.get("title") or ""
         if detail.get("homeName") and detail.get("awayName"):
             title = f"{detail['homeName']} vs {detail['awayName']}"
-        return StreamInfo(
+        info = StreamInfo(
             url=url,
             headers=dict(PLAYBACK_HEADERS),
             title=title,
             thumbnail=detail.get("livingBreakImg") or None,
             is_hls=True,
         )
+        # Surface "needs HTTP/1.1" via a sentinel header — play() picks it up.
+        if force_http1:
+            info.headers["__HTTP_VERSION__"] = "1.1"
+        return info
