@@ -374,15 +374,30 @@ class OleVod(SiteProvider):
             if detail.get("liveAlive") is False and detail.get("liveHasVod") is False:
                 raise RuntimeError("olevod: 比赛尚未开始 (match has not started)")
             raise RuntimeError("olevod: no playable URL for this match")
-        # When a "live" stream isn't actually broadcasting (match not started,
-        # or off-air), the API returns a discovery URL at api.olelive.com/dis/...
-        # whose master playlist points at /hls/break/ — a placeholder image
-        # that 503's on the inner variant. Detect and refuse cleanly.
-        if "/dis/sport/" in url or "/dis/" in url:
+        # Live (not VOD) streams come back as api.olelive.com/dis/sport/...
+        # discovery URLs that, without an auth token, fan out to /hls/break/ —
+        # a placeholder image whose inner variant 503s. The web player appends
+        # `?token=<_vv(now)>` (PlayerMatch chunk: `a.hls + "?token=" + l` where
+        # l = p(indexData.key, true, streamId) → just _vv(timestamp), the args
+        # are ignored). Apply the same trick, then verify the inner variant
+        # is actually serving — upcoming matches return 404 there.
+        if "/dis/" in url:
+            token = _vv(int(time.time()))
+            url = url + ("&" if "?" in url else "?") + "token=" + token
             try:
                 r = requests.get(url, headers=PLAYBACK_HEADERS, timeout=DEFAULT_TIMEOUT)
-                if "/hls/break/" in r.text:
+                body = r.text
+                if "/hls/break/" in body:
                     raise RuntimeError("比赛尚未开播 (broadcast not yet live)")
+                # Master points at a real broadcast server — confirm the inner
+                # playlist exists (returns 404 for matches that haven't started).
+                import re as _re
+                m = _re.search(r"https?://\S+\.m3u8\S*", body)
+                if m:
+                    head = requests.get(m.group(0), headers=PLAYBACK_HEADERS,
+                                        timeout=DEFAULT_TIMEOUT, stream=True)
+                    if head.status_code in (404, 503):
+                        raise RuntimeError("比赛尚未开播 (broadcast not yet live)")
             except requests.RequestException:
                 pass  # let Kodi try anyway
         title = detail.get("title") or ""
