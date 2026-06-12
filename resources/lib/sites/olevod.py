@@ -374,6 +374,17 @@ class OleVod(SiteProvider):
             if detail.get("liveAlive") is False and detail.get("liveHasVod") is False:
                 raise RuntimeError("olevod: 比赛尚未开始 (match has not started)")
             raise RuntimeError("olevod: no playable URL for this match")
+        # When a "live" stream isn't actually broadcasting (match not started,
+        # or off-air), the API returns a discovery URL at api.olelive.com/dis/...
+        # whose master playlist points at /hls/break/ — a placeholder image
+        # that 503's on the inner variant. Detect and refuse cleanly.
+        if "/dis/sport/" in url or "/dis/" in url:
+            try:
+                r = requests.get(url, headers=PLAYBACK_HEADERS, timeout=DEFAULT_TIMEOUT)
+                if "/hls/break/" in r.text:
+                    raise RuntimeError("比赛尚未开播 (broadcast not yet live)")
+            except requests.RequestException:
+                pass  # let Kodi try anyway
         title = detail.get("title") or ""
         if detail.get("homeName") and detail.get("awayName"):
             title = f"{detail['homeName']} vs {detail['awayName']}"
