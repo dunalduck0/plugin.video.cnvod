@@ -322,19 +322,29 @@ def play(site: str, video_id: str, episode: int = 1) -> None:
         xbmcplugin.setResolvedUrl(HANDLE, False, xbmcgui.ListItem())
         return
 
-    # Sentinel header from the provider: forces HTTP/1.1 via Kodi's URL
-    # options (some servers — notably newlive.olelive.com — break under
-    # HTTP/2 with CURLE_HTTP2_STREAM).
+    # Sentinel header from the provider: indicates the server's HTTP/2 stack
+    # is broken (CURLE_HTTP2_STREAM 92) and we need to bypass curl. Route via
+    # inputstream.ffmpegdirect — its libavformat HTTP is HTTP/1.1 only.
     headers = dict(info.headers or {})
-    http_version = headers.pop("__HTTP_VERSION__", None)
-    url = info.url
-    if http_version:
-        # Append |HTTP-Version=1.1 to the URL — CCurlFile parses this and
-        # sets CURLOPT_HTTP_VERSION before opening the connection.
-        sep = "&" if "|" in url else "|"
-        url = f"{url}{sep}HTTP-Version={http_version}"
+    needs_http1 = headers.pop("__HTTP_VERSION__", None) == "1.1"
 
-    item = xbmcgui.ListItem(label=info.title or video_id, path=url)
+    if needs_http1 and info.is_hls:
+        # ffmpegdirect reads headers from the URL |-suffix; ffmpeg's HTTP
+        # client (libavformat) supports User-Agent / Referer / etc as params.
+        opt_pairs = "&".join(f"{k}={v}" for k, v in headers.items())
+        url = f"{info.url}|{opt_pairs}" if opt_pairs else info.url
+        item = xbmcgui.ListItem(label=info.title or video_id, path=url)
+        if info.thumbnail:
+            item.setArt({"thumb": info.thumbnail})
+        item.setProperty("inputstream", "inputstream.ffmpegdirect")
+        item.setProperty("inputstream.ffmpegdirect.manifest_type", "hls")
+        item.setProperty("inputstream.ffmpegdirect.is_realtime_stream", "true")
+        item.setProperty("inputstream.ffmpegdirect.stream_mode", "none")
+        item.setProperty("inputstream.ffmpegdirect.open_mode", "ffmpeg")
+        xbmcplugin.setResolvedUrl(HANDLE, True, item)
+        return
+
+    item = xbmcgui.ListItem(label=info.title or video_id, path=info.url)
     if info.thumbnail:
         item.setArt({"thumb": info.thumbnail})
 

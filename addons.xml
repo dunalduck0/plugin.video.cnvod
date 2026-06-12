@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <addons>
-<addon id="plugin.video.cnvod" name="OleVod" version="0.9.23" provider-name="dunalduck0">
+<addon id="plugin.video.cnvod" name="OleVod" version="0.9.24" provider-name="dunalduck0">
     <requires>
         <import addon="xbmc.python" version="3.0.0" />
         <import addon="script.module.requests" version="2.22.0" />
         <import addon="inputstream.adaptive" version="2.0.0" optional="true" />
+        <import addon="inputstream.ffmpegdirect" version="20.0.0" optional="true" />
         <import addon="script.module.pycryptodome" version="3.0.0" optional="true" />
     </requires>
     <extension point="xbmc.python.pluginsource" library="default.py">
